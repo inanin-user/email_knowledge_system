@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import CaseChatPopup from '@/components/CaseChatPopup';
+import { withBasePath } from "@/lib/basePath";
 type MessageType = "user" | "in_reply";
 
 type EmailMessage = {
@@ -156,7 +158,7 @@ export default function EmailCasesPage() {
   useEffect(() => {
     const fetchCases = async () => {
       try {
-        const res = await fetch("/api/email-cases");
+        const res = await fetch(withBasePath('/api/email-cases'));
         if (!res.ok) {
           throw new Error(`Failed to fetch cases: ${res.status}`);
         }
@@ -210,11 +212,11 @@ export default function EmailCasesPage() {
   return (
     <main className="flex h-dvh min-h-[500px] overflow-hidden bg-[#111111] text-white">
       {/* Left panel */}
-      <aside className="flex w-full shrink-0 flex-col border-r border-[#303030] md:w-[310px] lg:w-[360px] xl:w-[400px]">
-        <header className="border-b border-[#303030] p-4">
+      <aside className="flex w-full shrink-0 flex-col border-r border-border bg-background text-foreground md:w-[310px] lg:w-[360px] xl:w-[400px]">
+        <header className="border-b border-border bg-background p-4 text-foreground">
           <h1 className="mb-4 text-lg font-semibold">Email cases</h1>
 
-          <label className="flex items-center gap-3 rounded-full bg-[#303030] px-4 py-3">
+          <label className="flex items-center gap-3 rounded-full border border-border bg-surface px-4 py-3">
             <span className="text-lg text-gray-400" aria-hidden="true">
               ⌕
             </span>
@@ -235,11 +237,10 @@ export default function EmailCasesPage() {
                 type="button"
                 onClick={() => setActiveFilter(filter)}
                 aria-pressed={activeFilter === filter}
-                className={`rounded-full border px-4 py-2 text-sm transition ${
-                  activeFilter === filter
-                    ? "border-emerald-700 bg-emerald-900/50 text-emerald-300"
-                    : "border-[#383838] text-gray-300 hover:bg-[#282828]"
-                }`}
+                className={`rounded-full border px-4 py-2 text-sm transition ${activeFilter === filter
+                  ? 'rounded-full border border-selected bg-selected px-4 py-2 text-sm text-selected-foreground'
+                  : 'rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground hover:bg-surface-muted'
+                  }`}
               >
                 {filter}
               </button>
@@ -257,7 +258,7 @@ export default function EmailCasesPage() {
               No matching email cases found.
             </p>
           ) : (
-            <ul className="space-y-1 px-2 pb-4">
+            <ul className="space-y-2 px-2 pb-4">
               {filteredCases.map((item) => {
                 const isSelected = selectedCase?.id === item.id;
 
@@ -267,22 +268,33 @@ export default function EmailCasesPage() {
                       type="button"
                       onClick={() => setSelectedId(item.id)}
                       aria-current={isSelected ? "true" : undefined}
-                      className={`w-full rounded-xl px-4 py-4 text-left transition ${
-                        isSelected ? "bg-[#303030]" : "hover:bg-[#222222]"
-                      }`}
+                      className={`w-full rounded-xl p-4 text-left transition-colors ${isSelected
+                        ? 'bg-selected text-selected-foreground'
+                        : 'bg-surface text-foreground hover:bg-surface-muted'
+                        }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="line-clamp-2 text-sm font-medium leading-6">
+                      <div className="flex w-full items-start justify-between gap-3">
+                        <span className="min-w-0 flex-1 break-words text-sm font-medium leading-6">
                           {item.subject}
                         </span>
 
-                        <span className="shrink-0 pt-1 text-xs text-gray-400">
+                        <time
+                          className={`shrink-0 pt-1 text-xs ${isSelected
+                            ? 'text-selected-foreground'
+                            : 'text-gray-500'
+                            }`}
+                        >
                           {formatDate(item.emailDate)}
-                        </span>
+                        </time>
                       </div>
 
-                      <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                        <span>{item.category}</span>
+                      <div
+                        className={`mt-2 text-left text-xs ${isSelected
+                          ? 'text-selected-foreground'
+                          : 'text-gray-500'
+                          }`}
+                      >
+                        {item.category}
                       </div>
                     </button>
                   </li>
@@ -291,48 +303,57 @@ export default function EmailCasesPage() {
             </ul>
           )}
         </div>
-        <footer className="border-t border-[#303030] bg-[#111111] p-4">
+        <footer className="border-t border-border bg-surface p-4">
           <Link
             href="/add-email-case"
             className="flex w-full items-center justify-center gap-2
               rounded-lg bg-emerald-700 px-4 py-3 text-sm font-semibold
               text-white transition hover:bg-emerald-600"
           >
-            <span className="text-xl leading-none" aria-hidden="true">
-              +
-            </span>
             Add email case
           </Link>
         </footer>
       </aside>
 
       {/* Right panel */}
-      <section className="hidden min-w-0 flex-1 flex-col md:flex">
+      <section className="hidden min-w-0 flex-1 flex-col bg-background text-foreground md:flex">
         {selectedCase ? (
           <>
-            <header className="border-b border-[#303030] px-6 py-5 lg:px-8">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-0">
+
+            <header className="border-b border-border bg-background px-6 py-5 lg:px-8">
+              <div className="flex flex-nowrap items-start gap-4">
+                {/* A: fills available space; subject wraps within A */}
+                <div className="min-w-0 flex-1">
                   <h2 className="break-words text-xl font-semibold lg:text-2xl">
                     {selectedCase.subject}
                   </h2>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-400">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
                     <span>{selectedCase.category}</span>
-
                     <span>{formatDate(selectedCase.emailDate)}</span>
                   </div>
                 </div>
 
-                <span className="rounded-full border border-[#454545] px-3 py-1 text-xs text-gray-300">
-                  {getStatusLabel(selectedCase.status)}
-                </span>
+                {/* B: always remains on the same row, aligned right */}
+                <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
+                  <span className="rounded-full border border-border px-3 py-1 text-xs text-foreground">
+                    {getStatusLabel(selectedCase.status)}
+                  </span>
+
+                  <CaseChatPopup
+                    key={selectedCase.id}
+                    caseSubject={selectedCase.subject}
+                    status={String(selectedCase.status)}
+                    statusLabel={getStatusLabel(selectedCase.status)}
+                  />
+                </div>
               </div>
             </header>
 
+
             <div className="flex-1 space-y-6 overflow-y-auto p-5 lg:p-8">
               {/* Root cause */}
-              <section className="rounded-lg bg-[#f5f5f5] p-5 text-[#202020]">
+              <section className="rounded-lg border border-root-cause-border bg-root-cause p-5 text-root-cause-foreground">
                 <h3 className="mb-3 text-base font-semibold">Root cause</h3>
 
                 <p className="whitespace-pre-wrap break-words text-sm leading-7">
@@ -358,11 +379,10 @@ function MessageHeader({ message }: { message: EmailMessage }) {
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
       <time
-        className={`text-xs ${
-          message.type !== "user"
-            ? "text-gray-200 text-left"
-            : "text-gray-100 text-right"
-        }`}
+        className={`text-xs ${message.type === "user"
+          ? "text-foreground text-left"
+          : "text-gray-100 text-right"
+          }`}
       >
         {formatDateTime(message.sentAt)}
       </time>
@@ -390,20 +410,19 @@ function MessageSection({
             return (
               <div key={message.id}>
                 <h3
-                  className={`mb-3 text-sm font-semibold text-gray-300 ${
-                    !isUser ? "text-right" : "text-left"
-                  }`}
+                  className={`mb-3 text-sm font-semibold text-gray-500 ${!isUser ? "text-right" : "text-left"
+                    }`}
                 >
                   {message.sender}
                 </h3>
 
                 <article
-                  className={`max-w-[95%] rounded-xl p-4 lg:max-w-[85%] ${
-                    !isUser ? "ml-auto bg-[#075e45]" : "mr-auto bg-[#292929]"
-                  }`}
+                  className={message.type === 'in_reply'
+                    ? 'ml-auto max-w-[85%] rounded-xl bg-message-reply p-4 text-message-reply-foreground'
+                    : 'mr-auto max-w-[85%] rounded-xl bg-message-user p-4 text-message-user-foreground'}
                 >
 
-                  <p className="whitespace-pre-wrap break-words text-sm leading-7 text-gray-100">
+                  <p className="whitespace-pre-wrap break-words text-sm leading-7">
                     {message.body}
                   </p>
                   <MessageHeader message={message} />

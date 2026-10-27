@@ -1,8 +1,9 @@
 
 'use client';
 
+import { withBasePath } from '@/lib/basePath';
 import Link from 'next/link';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 type ReplyEntry = {
   id: number;
@@ -29,6 +30,9 @@ type EmailCase = {
   messages: EmailMessage[];
 };
 
+const filters = ["All", "NPDP", "NPS"];
+
+
 function formatDate(value: string) {
   if (!value) return "Date unavailable";
 
@@ -54,24 +58,47 @@ const sidebarCases = [
 
 export default function AddEmailCasePage() {
   const [subject, setSubject] = useState('');
+  const [search, setSearch] = useState("");
+
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [selectedId, setSelectedId] = useState<number>(1);
+
   const [cases, setCases] = useState<EmailCase[]>([]);
-    useEffect(() => {
-      const fetchCases = async () => {
-        try {
-          const res = await fetch("/api/email-cases");
-          if (!res.ok) {
-            throw new Error(`Failed to fetch cases: ${res.status}`);
-          }
-          const json = await res.json();
-          setCases(json.data);
-          console.log("Fetched email cases:", json.data);
-        } catch (err) {
-          console.error("Error fetching email cases:", err);
+  useEffect(() => {
+    const fetchCases = async () => {
+      try {
+        const res = await fetch(withBasePath('/api/email-cases'));
+        if (!res.ok) {
+          throw new Error(`Failed to fetch cases: ${res.status}`);
         }
-      };
-  
-      fetchCases();
-    }, []);
+        const json = await res.json();
+        setCases(json.data);
+        console.log("Fetched email cases:", json.data);
+      } catch (err) {
+        console.error("Error fetching email cases:", err);
+      }
+    };
+
+    fetchCases();
+  }, []);
+
+  const filteredCases = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return cases.filter((item) => {
+      const matchesCategory =
+        activeFilter === "All" || item.category === activeFilter;
+
+      const matchesSearch =
+        !query ||
+        item.subject.toLowerCase().includes(query) ||
+        item.rootCause.toLowerCase().includes(query);
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [cases, search, activeFilter]);
+
+
   const [rootCause, setRootCause] = useState('');
   const [inReplies, setInReplies] = useState<ReplyEntry[]>([
     { id: 1, text: '' },
@@ -110,14 +137,6 @@ export default function AddEmailCasePage() {
     }
   }
 
-  function toggleCategory(category: string) {
-    setCategories((previous) =>
-      previous.includes(category)
-        ? previous.filter((item) => item !== category)
-        : [...previous, category],
-    );
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -136,7 +155,7 @@ export default function AddEmailCasePage() {
     setSaving(true);
 
     try {
-      const response = await fetch('/api/email-cases', {
+      const response = await fetch(withBasePath('/api/email-cases'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -174,26 +193,40 @@ export default function AddEmailCasePage() {
   return (
     <main className="flex h-dvh min-h-[600px] overflow-hidden bg-[#111111] text-white">
       {/* Sidebar */}
-      <aside className="flex w-full shrink-0 flex-col border-r border-[#303030] md:w-[310px] lg:w-[360px] xl:w-[400px]">
-        <header className="border-b border-[#303030] p-4">
+      <aside className="flex w-full shrink-0 flex-col border-r border-border bg-background text-foreground md:w-[310px] lg:w-[360px] xl:w-[400px]">
+        <header className="border-b border-border bg-background p-4 text-foreground">
           <h1 className="mb-4 text-lg font-semibold">Email cases</h1>
 
-          <div className="flex items-center gap-3 rounded-full bg-[#303030] px-4 py-3">
-            <span className="text-gray-400" aria-hidden="true">⌕</span>
-            <span className="text-sm text-gray-400">Search a subject</span>
-          </div>
+          <label className="flex items-center gap-3 rounded-full border border-border bg-surface px-4 py-3">
+            <span className="text-lg text-gray-400" aria-hidden="true">
+              ⌕
+            </span>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search a subject"
+              aria-label="Search email cases"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
+            />
+          </label>
 
-          <div className="mt-4 flex gap-2">
-            <span className="rounded-full border border-emerald-700 bg-emerald-900/50 px-4 py-2 text-sm text-emerald-300">
-              All
-            </span>
-            <span className="rounded-full border border-[#383838] px-4 py-2 text-sm text-gray-300">
-              NPDP
-            </span>
-            <span className="rounded-full border border-[#383838] px-4 py-2 text-sm text-gray-300">
-              NPS
-            </span>
-          </div>
+          <nav className="mt-4 flex gap-2" aria-label="Filter by category">
+            {filters.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setActiveFilter(filter)}
+                aria-pressed={activeFilter === filter}
+                className={`rounded-full border px-4 py-2 text-sm transition ${activeFilter === filter
+                  ? 'rounded-full border border-selected bg-selected px-4 py-2 text-sm text-selected-foreground'
+                  : 'rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground hover:bg-surface-muted'
+                  }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </nav>
         </header>
 
         <div className="flex-1 overflow-y-auto px-2 py-3">
@@ -201,7 +234,7 @@ export default function AddEmailCasePage() {
             Recent cases
           </p>
 
-          {cases.map((item) => (
+          {filteredCases.map((item) => (
             <div
               key={item.id}
               className="rounded-xl px-4 py-4 hover:bg-[#222222]"
@@ -217,18 +250,10 @@ export default function AddEmailCasePage() {
         </div>
 
         {/* Bottom-left entry button */}
-        <footer className="sticky bottom-0 border-t border-[#303030] bg-[#111111] p-4">
-          <Link
-            href="/add-email-case"
-            aria-current="page"
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
-          >
-            <span className="text-xl leading-none" aria-hidden="true">+</span>
-            Add email case
-          </Link>
+        <footer className="border-t border-border bg-surface p-4">
           <Link
             href="/"
-            className="mt-2 block text-center text-xs text-gray-400 hover:text-white"
+            className="flex w-full rounded-lg bg-cancel items-center justify-center px-4 py-2 text-cancel-foreground hover:bg-cancel-hover"
           >
             Back to email cases
           </Link>
@@ -236,17 +261,14 @@ export default function AddEmailCasePage() {
       </aside>
 
       {/* Form panel */}
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b border-[#303030] px-6 py-5 lg:px-8">
-          <h2 className="text-xl font-semibold lg:text-2xl">
+      <section className="flex min-w-0 flex-1 flex-col bg-background text-foreground">
+        <header className="border-b border-border bg-surface px-6 py-5 lg:px-8">
+          <h2 className="text-xl font-semibold text-foreground lg:text-2xl">
             Knowledge function
           </h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Create a new email case and record its troubleshooting knowledge.
-          </p>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5 lg:p-8">
+        <div className="flex-1 overflow-y-auto border-border bg-background p-5 lg:p-8">
           <form
             onSubmit={handleSubmit}
             className="mx-auto max-w-4xl space-y-6"
@@ -254,10 +276,11 @@ export default function AddEmailCasePage() {
             <div>
               <label
                 htmlFor="subject"
-                className="mb-2 block text-sm font-medium text-gray-200"
+                className="mb-2 block text-sm font-medium text-foreground"
               >
-                Email subject <span className="text-red-400">*</span>
+                Email subject <span className="text-red-600">*</span>
               </label>
+
               <input
                 id="subject"
                 value={subject}
@@ -265,24 +288,25 @@ export default function AddEmailCasePage() {
                 required
                 maxLength={500}
                 placeholder="Enter email subject"
-                className="w-full rounded-lg border border-[#414141] bg-[#1d1d1d] px-4 py-3 text-sm outline-none transition placeholder:text-gray-500 focus:border-emerald-600"
+                className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-gray-500 focus:border-selected focus:ring-2 focus:ring-selected/20"
               />
             </div>
 
             <div>
               <label
                 htmlFor="rootCause"
-                className="mb-2 block text-sm font-medium text-gray-200"
+                className="mb-2 block text-sm font-medium text-foreground"
               >
                 Root cause
               </label>
+
               <textarea
                 id="rootCause"
                 value={rootCause}
                 onChange={(event) => setRootCause(event.target.value)}
                 rows={5}
                 placeholder="Describe the issue, investigation, and root cause..."
-                className="w-full resize-y rounded-lg border border-[#414141] bg-[#1d1d1d] px-4 py-3 text-sm leading-6 outline-none transition placeholder:text-gray-500 focus:border-emerald-600"
+                className="w-full resize-y rounded-lg border border-border bg-surface px-4 py-3 text-sm leading-6 text-foreground outline-none transition placeholder:text-gray-500 focus:border-selected focus:ring-2 focus:ring-selected/20"
               />
             </div>
 
@@ -301,21 +325,25 @@ export default function AddEmailCasePage() {
             />
 
             <fieldset>
-              <legend className="mb-3 text-sm font-medium text-gray-200">
-                Category <span className="text-red-400">*</span>
+              <legend className="mb-3 text-sm font-medium text-foreground">
+                Category <span className="text-red-600">*</span>
               </legend>
 
               <div className="flex flex-wrap gap-6">
                 {['NPS', 'NPDP'].map((category) => (
                   <label
                     key={category}
-                    className="flex cursor-pointer items-center gap-3 text-sm text-gray-200"
+                    className="flex cursor-pointer items-center gap-3 text-sm text-foreground"
                   >
                     <input
                       type="checkbox"
                       checked={categories.includes(category)}
-                      onChange={() => toggleCategory(category)}
-                      className="h-4 w-4 accent-emerald-600"
+                      onChange={() =>
+                        setCategories(
+                          categories.includes(category) ? [] : [category]
+                        )
+                      }
+                      className="h-4 w-4 accent-selected"
                     />
                     {category}
                   </label>
@@ -323,22 +351,29 @@ export default function AddEmailCasePage() {
               </div>
             </fieldset>
 
+
             {error && (
-              <p role="alert" className="rounded-lg bg-red-950/50 p-3 text-sm text-red-300">
+              <p
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              >
                 {error}
               </p>
             )}
 
             {success && (
-              <p role="status" className="rounded-lg bg-emerald-950/50 p-3 text-sm text-emerald-300">
+              <p
+                role="status"
+                className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800"
+              >
                 {success}
               </p>
             )}
 
-            <div className="flex flex-wrap justify-end gap-3 border-t border-[#303030] pt-5">
+            <div className="flex flex-wrap justify-end gap-3 pt-5">
               <Link
                 href="/"
-                className="rounded-lg border border-[#414141] px-5 py-3 text-sm text-gray-300 hover:bg-[#252525]"
+                className="rounded-lg bg-cancel px-4 py-2 text-cancel-foreground transition-colors hover:bg-cancel-hover"
               >
                 Cancel
               </Link>
@@ -346,7 +381,7 @@ export default function AddEmailCasePage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg bg-confirm px-4 py-2 text-confirm-foreground transition-colors hover:bg-confirm-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save email case'}
               </button>
@@ -370,13 +405,16 @@ function ReplyEditor({
   onAdd: () => void;
 }) {
   return (
-    <section>
+    <section className="rounded-xl border border-border bg-surface p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-gray-200">{title}</h3>
+        <h3 className="text-sm font-medium text-foreground">
+          {title}
+        </h3>
+
         <button
           type="button"
           onClick={onAdd}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-[#505050] text-xl text-gray-200 transition hover:border-emerald-600 hover:bg-emerald-900/40"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-xl text-foreground transition-colors hover:border-selected hover:bg-selected hover:text-selected-foreground"
           aria-label={`Add another ${title}`}
           title={`Add another ${title}`}
         >
@@ -388,7 +426,7 @@ function ReplyEditor({
         {entries.map((entry, index) => (
           <div key={entry.id}>
             {entries.length > 1 && (
-              <label className="mb-1 block text-xs text-gray-500">
+              <label className="mb-1 block text-xs text-foreground">
                 {title} #{index + 1}
               </label>
             )}
@@ -398,7 +436,7 @@ function ReplyEditor({
               onChange={(event) => onChange(entry.id, event.target.value)}
               rows={3}
               placeholder={`Enter ${title.toLowerCase()}...`}
-              className="w-full resize-y rounded-lg border border-[#414141] bg-[#1d1d1d] px-4 py-3 text-sm leading-6 outline-none placeholder:text-gray-500 focus:border-emerald-600"
+              className="w-full resize-y rounded-lg border border-border bg-surface px-4 py-3 text-sm leading-6 text-foreground outline-none transition placeholder:text-gray-500 focus:border-selected focus:ring-2 focus:ring-selected/20"
             />
           </div>
         ))}

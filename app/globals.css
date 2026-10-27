@@ -1,27 +1,76 @@
-@import "tailwindcss";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff; /* white */
-  --foreground: #0a0a0a; /* black text */
+  /* Base colors */
+  color-scheme: light;
+  --background: #f5f6f5;
+  --foreground: #171717;
+
+  /* Surfaces */
+  --surface: #ffffff;
+  --surface-muted: #eeeeee;
+  --border: #d9dedb;
+
+  /* Confirmation buttons */
+  --confirm: #047857;          /* emerald-700 */
+  --confirm-hover: #059669; 
+  --confirm-foreground: #ffffff;
+
+  /* Cancellation buttons */
+  --cancel: #e0e0e0;
+  --cancel-hover: #cccccc;
+  --cancel-foreground: #171717;
+
+  /* Selected rows */
+  --selected: #287a58;
+  --selected-hover: #216849;
+  --selected-foreground: #ffffff;
+
+  /* Root cause */
+  --root-cause: #eee7f8;
+  --root-cause-border: #d5c5ed;
+  --root-cause-foreground: #171717;
+
+  /* Conversation messages */
+  --message-user: #eeeeee;
+  --message-user-foreground: #171717;
+
+  --message-reply: #287a58;
+  --message-reply-foreground: #ffffff;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-/* Dark mode override */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #171717;
-    --foreground: #ffffff;
-  }
+html,
+body {
+  min-height: 100%;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer components {
+  .btn-confirm {
+    @apply rounded-lg px-4 py-2 font-medium
+      text-confirm-foreground transition-colors;
+    background-color: var(--confirm);
+  }
+
+  .btn-confirm:hover {
+    background-color: var(--confirm-hover);
+  }
+
+  .btn-cancel {
+    @apply rounded-lg px-4 py-2 font-medium
+      text-cancel-foreground transition-colors;
+    background-color: var(--cancel);
+  }
+
+  .btn-cancel:hover {
+    background-color: var(--cancel-hover);
+  }
 }
