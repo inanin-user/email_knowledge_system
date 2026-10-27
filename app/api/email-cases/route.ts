@@ -1,26 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import type { RowDataPacket } from 'mysql2';
+import type { CaseRow } from '@/types/case';
 import type { ResultSetHeader } from 'mysql2';
 
-// export const runtime = 'nodejs';
-// export const dynamic = 'force-dynamic';
-
-type CaseRow = RowDataPacket & {
-  id: number;
-  case_number: string | null;
-  subject: string;
-  email_date: Date | null;
-  category: string | null;
-  root_cause: string | null;
-  status: string;
-  message_id: number | null;
-  message_type: 'original' | 'user' | 'in_reply' | null;
-  sender_name: string | null;
-  body: string | null;
-  sent_at: Date | null;
-};
 
 export async function POST(request: NextRequest) {
   let payload: {
