@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { withBasePath } from '@/lib/basePath';
-import Link from 'next/link';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { withBasePath } from "@/lib/basePath";
+import Link from "next/link";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 type ReplyEntry = {
   id: number;
@@ -30,7 +30,6 @@ type EmailCase = {
 
 const filters = ["All", "NPDP", "NPS"];
 
-
 function formatDate(value: string) {
   if (!value) return "Date unavailable";
 
@@ -55,7 +54,7 @@ const sidebarCases = [
 ];
 
 export default function AddEmailCasePage() {
-  const [subject, setSubject] = useState('');
+  const [subject, setSubject] = useState("");
   const [search, setSearch] = useState("");
 
   const [activeFilter, setActiveFilter] = useState("All");
@@ -65,7 +64,7 @@ export default function AddEmailCasePage() {
   useEffect(() => {
     const fetchCases = async () => {
       try {
-        const res = await fetch(withBasePath('/api/email-cases'));
+        const res = await fetch(withBasePath("/api/email-cases"));
         if (!res.ok) {
           throw new Error(`Failed to fetch cases: ${res.status}`);
         }
@@ -96,8 +95,7 @@ export default function AddEmailCasePage() {
     });
   }, [cases, search, activeFilter]);
 
-
-  const [rootCause, setRootCause] = useState('');
+  const [rootCause, setRootCause] = useState("");
   const [inReplies, setInReplies] = useState<ReplyEntry[]>([
     { id: 1, text: "" },
   ]);
@@ -218,7 +216,9 @@ export default function AddEmailCasePage() {
     try {
       const isEditing = editingCaseId !== null;
       const response = await fetch(
-        isEditing ? withBasePath(`/api/email-cases/${editingCaseId}`) : withBasePath("/api/email-cases"),
+        isEditing
+          ? withBasePath(`/api/email-cases/${editingCaseId}`)
+          : withBasePath("/api/email-cases"),
         {
           method: isEditing ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -250,7 +250,7 @@ export default function AddEmailCasePage() {
       setSuccess("Email case created successfully.");
 
       // Navigate to the case list after a successful save.
-      window.location.assign("/");
+      // window.location.assign("/");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred.",
@@ -364,6 +364,22 @@ export default function AddEmailCasePage() {
     );
   }
 
+  function clearForm() {
+    setSubject("");
+    setEmailDate("");
+    setRootCause("");
+    setStatus("pending");
+    setCategories(["NPS"]);
+
+    setInReplies([{ id: Date.now(), text: "" }]);
+    setUserReplies([{ id: Date.now() + 1, text: "" }]);
+    setPromptEditor([{ id: Date.now() + 2, text: "" }]);
+
+    setEditingCaseId(null);
+    setError("");
+    setSuccess("");
+  }
+
   return (
     <main className="flex h-dvh min-h-[600px] overflow-hidden bg-[#111111] text-white">
       {/* Sidebar */}
@@ -391,10 +407,11 @@ export default function AddEmailCasePage() {
                 type="button"
                 onClick={() => setActiveFilter(filter)}
                 aria-pressed={activeFilter === filter}
-                className={`rounded-full border px-4 py-2 text-sm transition ${activeFilter === filter
-                  ? 'rounded-full border border-selected bg-selected px-4 py-2 text-sm text-selected-foreground'
-                  : 'rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground hover:bg-surface-muted'
-                  }`}
+                className={`rounded-full border px-4 py-2 text-sm transition ${
+                  activeFilter === filter
+                    ? "rounded-full border border-selected bg-selected px-4 py-2 text-sm text-selected-foreground"
+                    : "rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground hover:bg-surface-muted"
+                }`}
               >
                 {filter}
               </button>
@@ -403,9 +420,19 @@ export default function AddEmailCasePage() {
         </header>
 
         <div className="flex-1 overflow-y-auto px-2 py-3">
-          <p className="px-4 py-2 text-xs uppercase tracking-wider text-gray-500">
-            Recent cases
-          </p>
+          <div className="flex items-center gap-2 px-4 py-2">
+            <Link
+              href="/"
+              onClick={clearForm}
+              className="shrink-0 rounded-lg bg-cancel px-3 py-1.5 text-xs text-cancel-foreground hover:bg-cancel-hover"
+            >
+              {"<"}
+            </Link>
+
+            <p className="text-xs uppercase tracking-wider text-gray-500">
+              Recent cases
+            </p>
+          </div>
 
           {filteredCases.map((item) => (
             <div
@@ -439,10 +466,15 @@ export default function AddEmailCasePage() {
         {/* Bottom-left entry button */}
         <footer className="border-t border-border bg-surface p-4">
           <Link
-            href="/"
-            className="flex w-full rounded-lg bg-cancel items-center justify-center px-4 py-2 text-cancel-foreground hover:bg-cancel-hover"
+            href="/add-email-case"
+            onClick={() => {
+              if (editingCaseId !== null) {
+                clearForm();
+              }
+            }}
+            className="flex w-full items-center justify-center rounded-lg bg-confirm px-4 py-2 text-white hover:bg-emerald-600"
           >
-            Back to email cases
+            Add new email case
           </Link>
         </footer>
       </aside>
@@ -550,7 +582,7 @@ export default function AddEmailCasePage() {
                       checked={categories.includes(category)}
                       onChange={() =>
                         setCategories(
-                          categories.includes(category) ? [] : [category]
+                          categories.includes(category) ? [] : [category],
                         )
                       }
                       className="h-4 w-4 accent-selected"
@@ -638,9 +670,7 @@ function ReplyEditor({
   return (
     <section className="rounded-xl border border-border bg-surface p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-foreground">
-          {title}
-        </h3>
+        <h3 className="text-sm font-medium text-foreground">{title}</h3>
 
         <button
           type="button"

@@ -20,96 +20,10 @@ type EmailCase = {
   emailDate: string;
   category: string;
   rootCause: string;
-  status: "open" | "in_progress" | "resolved" | "closed";
+  status: "pending" | "in-progress" | "waiting" | "confirmed";
   messages: EmailMessage[];
 };
 
-const initialCases: EmailCase[] = [
-  {
-    id: 1,
-    subject: "WS record did not turn red",
-    emailDate: "2026-10-22 09:00",
-    category: "NPS",
-    status: "open",
-    rootCause:
-      'WS record PS-PQL773 was confirmed/sent in NPS after 18:00 on 10/15 using "release" in the draft PWS function. According to the expected logic, the WS should be sent automatically by 01:00 on 10/16 and its status should turn red. However, the status did not turn red to alert the factory user to download the PWS record.\n\nOther affected WS records:\nPS-PQL773\nPS-PQL778\nPS-PQL779',
-    messages: [
-      {
-        id: 2,
-        type: "user",
-        sender: "User",
-        body: "The WS record did not turn red as expected. Please investigate the automatic sending logic and related records.",
-        sentAt: "2026-10-22 09:30",
-      },
-      {
-        id: 3,
-        type: "in_reply",
-        sender: "iN consultant",
-        body: "We will investigate the draft PWS release function, automatic sending process, and the database status updates.",
-        sentAt: "2026-10-22 10:15",
-      },
-    ],
-  },
-  {
-    id: 2,
-    subject: "WSF (BH)",
-    emailDate: "2026-10-06 14:30",
-    category: "NPDP",
-    status: "in_progress",
-    rootCause:
-      "The root cause has not yet been confirmed. Further investigation is required.",
-    messages: [
-      {
-        id: 4,
-        type: "user",
-        sender: "User",
-        body: "WSF (BH) — issue details pending investigation.",
-        sentAt: "2026-10-06 14:30",
-      },
-      {
-        id: 5,
-        type: "user",
-        sender: "User",
-        body: "Please check this issue.",
-        sentAt: "2026-10-06 15:00",
-      },
-    ],
-  },
-  {
-    id: 3,
-    subject: "WhatsApp",
-    emailDate: "2026-10-06 11:20",
-    category: "NPS",
-    status: "open",
-    rootCause: "Root cause has not been provided.",
-    messages: [
-      {
-        id: 6,
-        type: "user",
-        sender: "User",
-        body: "WhatsApp — issue details pending investigation.",
-        sentAt: "2026-10-06 11:20",
-      },
-    ],
-  },
-  {
-    id: 4,
-    subject: "Rental and sales information",
-    emailDate: "2026-10-12 16:00",
-    category: "NPDP",
-    status: "resolved",
-    rootCause: "Root cause has not been provided.",
-    messages: [
-      {
-        id: 7,
-        type: "user",
-        sender: "User",
-        body: "Rental and sales information — example case.",
-        sentAt: "2026-10-12 16:00",
-      },
-    ],
-  },
-];
 
 const filters = ["All", "NPDP", "NPS"];
 
@@ -146,10 +60,10 @@ function formatDateTime(value: string) {
 
 function getStatusLabel(status: EmailCase["status"]) {
   return {
-    open: "Open",
-    in_progress: "In progress",
-    resolved: "Resolved",
-    closed: "Closed",
+    "pending": "Pending",
+    "in-progress": "In progress",
+    "waiting": "Waiting",
+    "confirmed": "Confirmed",
   }[status];
 }
 
@@ -362,7 +276,7 @@ export default function EmailCasesPage() {
               </section>
 
               {/* Messages */}
-              <MessageSection messages={messages} emptyText="No recorded." />
+              {/* <MessageSection messages={messages} emptyText="No recorded." /> */}
             </div>
           </>
         ) : (
