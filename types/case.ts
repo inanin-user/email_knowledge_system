@@ -22,12 +22,12 @@ export type EmailMessageRow = RowDataPacket & {
   message_type: 'original' | 'user' | 'in_reply' | null;
   sender_name: string | null;
   sender_email: string | null;
-  body: string | null;
+  body: string;
   sent_at: Date | null;
 };
 
 export type TroubleshootingPromptRow = RowDataPacket & {
   id: number;
   case_id: number;
-  body: string | null;
+  body: string;
 };

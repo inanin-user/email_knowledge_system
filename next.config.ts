@@ -1,7 +1,7 @@
 
 import type { NextConfig } from "next";
 
-const basePath = '/202609';
+const basePath = '/k_sys';
 const nextConfig: NextConfig = {
   basePath,
   // assetPrefix defaults to basePath, no need to set separately
@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },
+  serverExternalPackages: ["bcrypt"],
   experimental: {
     agentFeedback: true,
   },

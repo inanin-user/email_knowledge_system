@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import type { CaseRow } from '@/types/case';
+import type { CaseRow, TroubleshootingPromptRow } from '@/types/case';
 import type { ResultSetHeader } from 'mysql2';
 
 
@@ -182,6 +182,7 @@ export async function POST(request: NextRequest) {
 }
 
 
+
 export async function GET() {
   try {
     const [rows] = await pool.query<CaseRow[]>(`
@@ -207,6 +208,23 @@ export async function GET() {
         m.id ASC
     `);
 
+    const [promptRows] = await pool.query<TroubleshootingPromptRow[]>(`
+      SELECT
+        id,
+        case_id,
+        body
+      FROM troubleshooting_prompts
+      ORDER BY case_id ASC, id ASC
+    `);
+
+    const promptsByCase = new Map<number, TroubleshootingPromptRow[]>();
+
+    for (const prompt of promptRows) {
+      const prompts = promptsByCase.get(prompt.case_id) ?? [];
+      prompts.push(prompt);
+      promptsByCase.set(prompt.case_id, prompts);
+    }
+
     const cases = new Map<number, {
       id: number;
       subject: string;
@@ -221,6 +239,7 @@ export async function GET() {
         body: string;
         sentAt: Date | null;
       }[];
+      prompts: TroubleshootingPromptRow[];
     }>();
 
     for (const row of rows) {
@@ -233,6 +252,7 @@ export async function GET() {
           rootCause: row.root_cause,
           status: row.status,
           messages: [],
+          prompts: promptsByCase.get(row.id) ?? [],
         });
       }
 

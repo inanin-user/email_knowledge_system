@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { CaseRow, EmailMessageRow, TroubleshootingPromptRow } from '@/types/case';
 import pool from '@/lib/db';
+import { CASE_STATUSES, CaseStatus } from '@/types/caseStatus';
 
 
 type RouteContext = {
@@ -29,7 +30,7 @@ export async function GET(
 
   try {
     const [caseRows] = await pool.execute<CaseRow[]>(
-      `SELECT id, subject, email_date, root_cause, category, status
+      `SELECT id, subject, DATE_FORMAT(email_date, '%Y-%m-%d') AS emailDate, root_cause, category, status
        FROM email_cases
        WHERE id = ?
        LIMIT 1`,
@@ -67,7 +68,7 @@ export async function GET(
       data: {
         id: item.id,
         subject: item.subject,
-        emailDate: item.email_date,
+        emailDate: item.emailDate,
         rootCause: item.root_cause,
         category: item.category,
         status: item.status,
@@ -121,13 +122,6 @@ export async function PATCH(
       ? body.emailDate
       : null;
 
-  const validStatuses = [
-    'in-progress',
-    'confirmed',
-    'pending',
-    'waiting',
-  ];
-
   const validCategories = ['NPS', 'NPDP'];
 
   const categories = Array.isArray(body.categories)
@@ -137,7 +131,7 @@ export async function PATCH(
   if (
     !subject ||
     subject.length > 500 ||
-    !validStatuses.includes(String(body.status)) ||
+    !CASE_STATUSES.includes(body.status as CaseStatus) ||
     categories.length !== 1 ||
     !validCategories.includes(String(categories[0]))
   ) {

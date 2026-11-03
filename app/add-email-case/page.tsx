@@ -3,6 +3,11 @@
 import { withBasePath } from "@/lib/basePath";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  CASE_STATUSES,
+  getStatusLabel,
+  type CaseStatus,
+} from "@/types/caseStatus";
 
 type ReplyEntry = {
   id: number;
@@ -24,7 +29,7 @@ type EmailCase = {
   emailDate: string;
   category: string;
   rootCause: string;
-  status: "open" | "in_progress" | "resolved" | "closed";
+  status: CaseStatus;
   messages: EmailMessage[];
 };
 
@@ -44,21 +49,13 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-const sidebarCases = [
-  { id: 1, subject: "WS record did not turn red", date: "10/22/2026" },
-  { id: 2, subject: "WSF (BH)", date: "10/06/2026" },
-  { id: 3, subject: "WhatsApp", date: "10/06/2026" },
-  { id: 4, subject: "Rental and sales information", date: "10/12/2026" },
-  { id: 5, subject: "Facebook", date: "10/01/2026" },
-  { id: 6, subject: "Perry", date: "09/29/2026" },
-];
 
 export default function AddEmailCasePage() {
   const [subject, setSubject] = useState("");
   const [search, setSearch] = useState("");
 
   const [activeFilter, setActiveFilter] = useState("All");
-  const [selectedId, setSelectedId] = useState<number>(1);
+  const [statusFilter, setStatusFilter] = useState<CaseStatus | "All">("All");
 
   const [cases, setCases] = useState<EmailCase[]>([]);
   useEffect(() => {
@@ -80,20 +77,23 @@ export default function AddEmailCasePage() {
   }, []);
 
   const filteredCases = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  const query = search.trim().toLowerCase();
 
-    return cases.filter((item) => {
-      const matchesCategory =
-        activeFilter === "All" || item.category === activeFilter;
+  return cases.filter((item) => {
+    const matchesCategory =
+      activeFilter === "All" || item.category === activeFilter;
 
-      const matchesSearch =
-        !query ||
-        item.subject.toLowerCase().includes(query) ||
-        item.rootCause.toLowerCase().includes(query);
+    const matchesStatus =
+      statusFilter === "All" || item.status === statusFilter;
 
-      return matchesCategory && matchesSearch;
-    });
-  }, [cases, search, activeFilter]);
+    const matchesSearch =
+      !query ||
+      item.subject.toLowerCase().includes(query) ||
+      (item.rootCause ?? "").toLowerCase().includes(query);
+
+    return matchesCategory && matchesStatus && matchesSearch;
+  });
+}, [cases, search, activeFilter, statusFilter]);
 
   const [rootCause, setRootCause] = useState("");
   const [inReplies, setInReplies] = useState<ReplyEntry[]>([
@@ -102,13 +102,13 @@ export default function AddEmailCasePage() {
   const [userReplies, setUserReplies] = useState<ReplyEntry[]>([
     { id: 2, text: "" },
   ]);
-  const [categories, setCategories] = useState<string[]>(["NPS"]);
+  const [categories, setCategories] = useState<string[]>(["NPDP"]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const [emailDate, setEmailDate] = useState("");
-  const [status, setStatus] = useState<CaseStatus>("pending");
+  const [status, setStatus] = useState<CaseStatus>("follow_up");
   const [promptEditor, setPromptEditor] = useState<ReplyEntry[]>([
     { id: 1, text: "" },
   ]);
@@ -133,8 +133,12 @@ export default function AddEmailCasePage() {
 
       setEditingCaseId(item.id);
       setSubject(item.subject ?? "");
+      // const fetchedEmailDate = item.emailDate;
+      console.log("Fetched email date:", item.emailDate);
       setEmailDate(
-        typeof item.emailDate === "string" ? item.emailDate.slice(0, 10) : "",
+        typeof item.emailDate === "string"
+          ? item.emailDate.slice(0, 10)
+          : ""
       );
       setRootCause(item.rootCause ?? "");
       setStatus(item.status);
@@ -247,7 +251,14 @@ export default function AddEmailCasePage() {
         throw new Error(result.message || "Failed to save email case.");
       }
 
-      setSuccess("Email case created successfully.");
+      setSuccess(
+        isEditing
+          ? "Email case updated successfully."
+          : "Email case created successfully."
+      );
+
+      // Refresh after successful save
+      window.location.reload();
 
       // Navigate to the case list after a successful save.
       // window.location.assign("/");
@@ -259,8 +270,6 @@ export default function AddEmailCasePage() {
       setSaving(false);
     }
   }
-
-  type CaseStatus = "in-progress" | "confirmed" | "pending" | "waiting";
 
   type ReplyEntry = {
     id: number;
@@ -368,8 +377,8 @@ export default function AddEmailCasePage() {
     setSubject("");
     setEmailDate("");
     setRootCause("");
-    setStatus("pending");
-    setCategories(["NPS"]);
+    setStatus("follow_up");
+    setCategories(["NPDP"]);
 
     setInReplies([{ id: Date.now(), text: "" }]);
     setUserReplies([{ id: Date.now() + 1, text: "" }]);
@@ -422,7 +431,7 @@ export default function AddEmailCasePage() {
         <div className="flex-1 overflow-y-auto px-2 py-3">
           <div className="flex items-center gap-2 px-4 py-2">
             <Link
-              href="/"
+              href="/email-case-dialog"
               onClick={clearForm}
               className="shrink-0 rounded-lg bg-cancel px-3 py-1.5 text-xs text-cancel-foreground hover:bg-cancel-hover"
             >
@@ -432,6 +441,22 @@ export default function AddEmailCasePage() {
             <p className="text-xs uppercase tracking-wider text-gray-500">
               Recent cases
             </p>
+
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as CaseStatus | "All")
+              }
+              aria-label="Filter cases by status"
+              className="ml-auto min-w-0 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-foreground outline-none transition focus:border-selected"
+            >
+              <option value="All">All statuses</option>
+              <option value="in_progress">In progress</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="pending">Pending</option>
+              <option value="waiting">Waiting</option>
+              <option value="follow_up">Follow up</option>
+            </select>
           </div>
 
           {filteredCases.map((item) => (
@@ -445,7 +470,23 @@ export default function AddEmailCasePage() {
                   onClick={() => loadCaseForEditing(item.id)}
                   className="min-w-0 flex-1 text-left text-sm text-foreground group-hover:text-white"
                 >
-                  <span className="block break-words">{item.subject}</span>
+                  {/* Row 1: indicator aligned right */}
+                  <div className="flex justify-start">
+                    {item.status === "follow_up" && (
+                      <span
+                        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold leading-none text-white"
+                        title="Follow up required"
+                        aria-label="Follow up required"
+                      >
+                        !
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Row 2: subject */}
+                  <div className="mt-1 break-words">{item.subject}</div>
+
+                  {/* Row 3: date */}
                   <span className="mt-1 block text-xs text-foreground group-hover:text-white">
                     {formatDate(item.emailDate)}
                   </span>
@@ -546,17 +587,25 @@ export default function AddEmailCasePage() {
             </div>
 
             <ReplyEditor
-              title="iN Reply"
+              title="iN Comment"
               entries={inReplies}
               onChange={(id, text) => updateReply("in", id, text)}
               onAdd={() => addReply("in")}
+              remarks={["follow up", "filename"]}
+              onRemarkClick={(remark) => {
+                console.log("Selected iN Reply remark:", remark);
+              }}
             />
 
             <ReplyEditor
-              title="User Reply"
+              title="User Comment"
               entries={userReplies}
               onChange={(id, text) => updateReply("user", id, text)}
               onAdd={() => addReply("user")}
+              remarks={["finding"]}
+              onRemarkClick={(remark) => {
+                console.log("Selected User Reply remark:", remark);
+              }}
             />
 
             <ReplyEditor
@@ -572,7 +621,7 @@ export default function AddEmailCasePage() {
               </legend>
 
               <div className="flex flex-wrap gap-6">
-                {["NPS", "NPDP"].map((category) => (
+                {["NPDP", "NPS"].map((category) => (
                   <label
                     key={category}
                     className="flex cursor-pointer items-center gap-3 text-sm text-foreground"
@@ -608,10 +657,11 @@ export default function AddEmailCasePage() {
                 }
                 className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none focus:border-emerald-600"
               >
-                <option value="in-progress">In progress</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="pending">Pending</option>
-                <option value="waiting">Waiting</option>
+                {CASE_STATUSES.map((statusOption) => (
+                  <option key={statusOption} value={statusOption}>
+                    {getStatusLabel(statusOption)}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -635,7 +685,7 @@ export default function AddEmailCasePage() {
 
             <div className="flex flex-wrap justify-end gap-3 pt-5">
               <Link
-                href="/"
+                href="/email-case-dialog"
                 className="rounded-lg bg-cancel px-4 py-2 text-cancel-foreground transition-colors hover:bg-cancel-hover"
               >
                 Cancel
@@ -656,31 +706,50 @@ export default function AddEmailCasePage() {
   );
 }
 
+type ReplyRemark = "follow up" | "filename" | "finding";
+
 function ReplyEditor({
   title,
   entries,
   onChange,
   onAdd,
+  remarks = [],
+  onRemarkClick,
 }: {
   title: string;
   entries: ReplyEntry[];
   onChange: (id: number, text: string) => void;
   onAdd: () => void;
+  remarks?: ReplyRemark[];
+  onRemarkClick?: (remark: ReplyRemark) => void;
 }) {
   return (
     <section className="rounded-xl border border-border bg-surface p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-sm font-medium text-foreground">{title}</h3>
 
-        <button
-          type="button"
-          onClick={onAdd}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-xl text-foreground transition-colors hover:border-selected hover:bg-selected hover:text-selected-foreground"
-          aria-label={`Add another ${title}`}
-          title={`Add another ${title}`}
-        >
-          +
-        </button>
+        <div className="flex items-center gap-2">
+          {remarks.map((remark) => (
+            <button
+              key={remark}
+              type="button"
+              onClick={() => onRemarkClick?.(remark)}
+              className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-foreground transition-colors hover:border-selected hover:bg-selected hover:text-selected-foreground"
+            >
+              {remark}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            onClick={onAdd}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-xl text-foreground transition-colors hover:border-selected hover:bg-selected hover:text-selected-foreground"
+            aria-label={`Add another ${title}`}
+            title={`Add another ${title}`}
+          >
+            +
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">
