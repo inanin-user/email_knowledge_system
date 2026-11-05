@@ -117,7 +117,7 @@ export default function EmailCasesPage() {
       {/* Left panel */}
       <aside className="flex w-full shrink-0 flex-col border-r border-border bg-background text-foreground md:w-[310px] lg:w-[360px] xl:w-[400px]">
         <header className="border-b border-border bg-background p-4 text-foreground">
-          <h1 className="mb-4 text-lg font-semibold">Email cases</h1>
+          <h1 className="mb-4 text-lg font-semibold">Email case</h1>
 
           <label className="flex items-center gap-3 rounded-full border border-border bg-surface px-4 py-3">
             <span className="text-lg text-gray-400" aria-hidden="true">
@@ -208,12 +208,12 @@ export default function EmailCasesPage() {
         </div>
         <footer className="border-t border-border bg-surface p-4">
           <Link
-            href="/add-email-case"
+            href="/add-information-case"
             className="flex w-full items-center justify-center gap-2
               rounded-lg bg-emerald-700 px-4 py-3 text-sm font-semibold
               text-white transition hover:bg-emerald-600"
           >
-            Add email case
+            Add information case
           </Link>
         </footer>
       </aside>

@@ -74,3 +74,73 @@ body {
     background-color: var(--cancel-hover);
   }
 }
+
+
+/* =========================================
+   Navigation floating menu animations
+========================================= */
+
+@keyframes navigationScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes navigationScaleDown {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+}
+
+.navigation-scale-up {
+  animation: navigationScaleUp 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top right;
+}
+
+.navigation-scale-down {
+  animation: navigationScaleDown 200ms ease-in both;
+}
+
+/* Grey background cover */
+
+.navigation-overlay {
+  border: 0;
+  padding: 0;
+  transition: opacity 200ms ease;
+}
+
+.navigation-overlay-open {
+  opacity: 1;
+  transition-delay: 200ms;
+}
+
+.navigation-overlay-close {
+  opacity: 0;
+  transition-delay: 200ms;
+}
+
+/* Respect reduced motion preferences */
+
+@media (prefers-reduced-motion: reduce) {
+  .navigation-scale-up,
+  .navigation-scale-down {
+    animation-duration: 1ms;
+  }
+
+  .navigation-overlay {
+    transition-duration: 1ms;
+    transition-delay: 0ms;
+  }
+}
