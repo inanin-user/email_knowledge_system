@@ -17,7 +17,7 @@ const navigationItems = [
   },
   {
     title: "Information Case",
-    description: "New Email Request",
+    description: "Information Function",
     href: "/add-information-case",
     matchPaths: [
       "/information-case-dialog",
