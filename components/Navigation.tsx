@@ -89,12 +89,12 @@ export default function Navigation() {
         <div className="mx-auto flex h-14 max-w-screen-2xl items-center justify-between px-4 sm:px-6">
 
           {/* Application title */}
-          <Link
-            href="/email-case-dialog"
+          <div
+            // href="/email-case-dialog"
             className="text-lg font-semibold text-foreground"
           >
             K and I System
-          </Link>
+          </div>
 
           {/* Hamburger and floating menu anchor */}
           <div className="relative flex items-center">

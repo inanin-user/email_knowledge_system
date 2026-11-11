@@ -10,10 +10,10 @@ export default function AuthenticatedLayout({
   children,
 }: AuthenticatedLayoutProps) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex h-screen flex-col bg-background text-foreground">
       <Navigation />
 
-      <main className="min-h-[calc(100vh-56px)]">
+      <main className="min-h-0 flex-1 overflow-hidden">
         {children}
       </main>
     </div>

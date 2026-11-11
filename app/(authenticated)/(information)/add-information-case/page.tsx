@@ -499,7 +499,7 @@ export default function AddEmailCasePage() {
           {/* Form actions */}
           <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-6">
             <Link
-              href="/information-case-dialog"
+              href="/add-information-case"
               className="rounded-lg bg-cancel px-5 py-2.5 text-sm font-medium text-cancel-foreground transition-colors hover:bg-cancel-hover"
             >
               Cancel

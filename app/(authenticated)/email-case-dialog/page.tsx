@@ -73,9 +73,23 @@ export default function EmailCasesPage() {
 
     fetchCases();
   }, []);
-  const [selectedId, setSelectedId] = useState<number>(1);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+
+  useEffect(() => {
+  if (!cases.length || selectedId !== null) return;
+
+  const followUpCase = cases
+  .filter((item) => item.status === "follow_up")
+  .sort(
+    (a, b) =>
+      new Date(a.emailDate).getTime() -
+      new Date(b.emailDate).getTime()
+  )[0];
+
+  setSelectedId(followUpCase?.id ?? cases[0].id);
+}, [cases, selectedId]);
 
   const filteredCases = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -90,7 +104,24 @@ export default function EmailCasesPage() {
         item.rootCause.toLowerCase().includes(query);
 
       return matchesCategory && matchesSearch;
-    });
+    })
+      .sort((a, b) => {
+        const aFollowUp = a.status === "follow_up";
+        const bFollowUp = b.status === "follow_up";
+
+        // Follow-up cases first
+        if (aFollowUp && !bFollowUp) return -1;
+        if (!aFollowUp && bFollowUp) return 1;
+
+        // Among follow-up cases, nearest date first
+        if (aFollowUp && bFollowUp) {
+          return (
+            new Date(a.emailDate).getTime() - new Date(b.emailDate).getTime()
+          );
+        }
+
+        return 0;
+      });
   }, [cases, search, activeFilter]);
 
   const selectedCase =
@@ -113,7 +144,7 @@ export default function EmailCasesPage() {
       ) ?? [];
 
   return (
-    <main className="flex h-dvh min-h-[500px] overflow-hidden bg-[#111111] text-white">
+    <main className="flex h-full min-h-0 overflow-hidden bg-[#111111] text-white">
       {/* Left panel */}
       <aside className="flex w-full shrink-0 flex-col border-r border-border bg-background text-foreground md:w-[310px] lg:w-[360px] xl:w-[400px]">
         <header className="border-b border-border bg-background p-4 text-foreground">
@@ -176,6 +207,17 @@ export default function EmailCasesPage() {
                         : 'bg-surface text-foreground hover:bg-surface-muted'
                         }`}
                     >
+                      <div className="flex justify-start">
+                        {item.status === "follow_up" && (
+                          <span
+                            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold leading-none text-white"
+                            title="Follow up required"
+                            aria-label="Follow up required"
+                          >
+                            !
+                          </span>
+                        )}
+                      </div>
                       <div className="flex w-full items-start justify-between gap-3">
                         <span className="min-w-0 flex-1 break-words text-sm font-medium leading-6">
                           {item.subject}
@@ -208,12 +250,12 @@ export default function EmailCasesPage() {
         </div>
         <footer className="border-t border-border bg-surface p-4">
           <Link
-            href="/add-information-case"
+            href="/add-email-case"
             className="flex w-full items-center justify-center gap-2
               rounded-lg bg-emerald-700 px-4 py-3 text-sm font-semibold
               text-white transition hover:bg-emerald-600"
           >
-            Add information case
+            Add email case
           </Link>
         </footer>
       </aside>

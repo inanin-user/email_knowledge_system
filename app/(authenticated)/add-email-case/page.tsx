@@ -49,7 +49,6 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-
 export default function AddEmailCasePage() {
   const [subject, setSubject] = useState("");
   const [search, setSearch] = useState("");
@@ -77,23 +76,41 @@ export default function AddEmailCasePage() {
   }, []);
 
   const filteredCases = useMemo(() => {
-  const query = search.trim().toLowerCase();
+    const query = search.trim().toLowerCase();
 
-  return cases.filter((item) => {
-    const matchesCategory =
-      activeFilter === "All" || item.category === activeFilter;
+    return cases
+      .filter((item) => {
+        const matchesCategory =
+          activeFilter === "All" || item.category === activeFilter;
 
-    const matchesStatus =
-      statusFilter === "All" || item.status === statusFilter;
+        const matchesStatus =
+          statusFilter === "All" || item.status === statusFilter;
 
-    const matchesSearch =
-      !query ||
-      item.subject.toLowerCase().includes(query) ||
-      (item.rootCause ?? "").toLowerCase().includes(query);
+        const matchesSearch =
+          !query ||
+          item.subject.toLowerCase().includes(query) ||
+          (item.rootCause ?? "").toLowerCase().includes(query);
 
-    return matchesCategory && matchesStatus && matchesSearch;
-  });
-}, [cases, search, activeFilter, statusFilter]);
+        return matchesCategory && matchesStatus && matchesSearch;
+      })
+      .sort((a, b) => {
+        const aFollowUp = a.status === "follow_up";
+        const bFollowUp = b.status === "follow_up";
+
+        // Follow-up cases first
+        if (aFollowUp && !bFollowUp) return -1;
+        if (!aFollowUp && bFollowUp) return 1;
+
+        // Among follow-up cases, nearest date first
+        if (aFollowUp && bFollowUp) {
+          return (
+            new Date(a.emailDate).getTime() - new Date(b.emailDate).getTime()
+          );
+        }
+
+        return 0;
+      });
+  }, [cases, search, activeFilter, statusFilter]);
 
   const [rootCause, setRootCause] = useState("");
   const [inReplies, setInReplies] = useState<ReplyEntry[]>([
@@ -136,9 +153,7 @@ export default function AddEmailCasePage() {
       // const fetchedEmailDate = item.emailDate;
       console.log("Fetched email date:", item.emailDate);
       setEmailDate(
-        typeof item.emailDate === "string"
-          ? item.emailDate.slice(0, 10)
-          : ""
+        typeof item.emailDate === "string" ? item.emailDate.slice(0, 10) : "",
       );
       setRootCause(item.rootCause ?? "");
       setStatus(item.status);
@@ -254,7 +269,7 @@ export default function AddEmailCasePage() {
       setSuccess(
         isEditing
           ? "Email case updated successfully."
-          : "Email case created successfully."
+          : "Email case created successfully.",
       );
 
       // Refresh after successful save
@@ -390,7 +405,7 @@ export default function AddEmailCasePage() {
   }
 
   return (
-    <main className="flex h-dvh min-h-[600px] overflow-hidden bg-[#111111] text-white">
+    <main className="flex h-full min-h-0 overflow-hidden bg-[#111111] text-white">
       {/* Sidebar */}
       <aside className="flex w-full shrink-0 flex-col border-r border-border bg-background text-foreground md:w-[310px] lg:w-[360px] xl:w-[400px]">
         <header className="border-b border-border bg-background p-4 text-foreground">
@@ -504,20 +519,6 @@ export default function AddEmailCasePage() {
           ))}
         </div>
 
-        {/* Bottom-left entry button */}
-        <footer className="border-t border-border bg-surface p-4">
-          <Link
-            href="/add-email-case"
-            onClick={() => {
-              if (editingCaseId !== null) {
-                clearForm();
-              }
-            }}
-            className="flex w-full items-center justify-center rounded-lg bg-confirm px-4 py-2 text-white hover:bg-emerald-600"
-          >
-            Add new email case
-          </Link>
-        </footer>
       </aside>
 
       {/* Form panel */}
@@ -685,7 +686,7 @@ export default function AddEmailCasePage() {
 
             <div className="flex flex-wrap justify-end gap-3 pt-5">
               <Link
-                href="/email-case-dialog"
+                href="/add-email-case"
                 className="rounded-lg bg-cancel px-4 py-2 text-cancel-foreground transition-colors hover:bg-cancel-hover"
               >
                 Cancel
