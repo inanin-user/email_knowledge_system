@@ -50,6 +50,7 @@ function formatDate(value: string) {
 }
 
 export default function AddEmailCasePage() {
+  const [isAdmin, setIsAdmin] = useState(false);
   const [subject, setSubject] = useState("");
   const [search, setSearch] = useState("");
 
@@ -57,6 +58,14 @@ export default function AddEmailCasePage() {
   const [statusFilter, setStatusFilter] = useState<CaseStatus | "All">("All");
 
   const [cases, setCases] = useState<EmailCase[]>([]);
+
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false);
+
   useEffect(() => {
     const fetchCases = async () => {
       try {
@@ -111,6 +120,7 @@ export default function AddEmailCasePage() {
     { id: 1, text: "" },
   ]);
   const [editingCaseId, setEditingCaseId] = useState<number | null>(null);
+  const [showAddCategory, setShowAddCategory] = useState(false);
 
   function updateReply(type: "in" | "user", id: number, text: string) {
     const update = (items: ReplyEntry[]) =>
@@ -138,6 +148,12 @@ export default function AddEmailCasePage() {
     event.preventDefault();
     setError("");
     setSuccess("");
+    if (categories.length === 0) {
+      setCategoryError("Please select at least one category.");
+      return;
+    }
+
+    setCategoryError("");
 
     if (!subject.trim()) {
       setError("Please enter an email subject.");
@@ -271,6 +287,125 @@ export default function AddEmailCasePage() {
     return "";
   }
 
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [categoryError, setCategoryError] = useState("");
+
+  const fetchCategories = async () => {
+    try {
+      setIsLoadingCategories(true);
+      setCategoryError("");
+
+      const response = await fetch(withBasePath("/api/category-tags"), {
+        credentials: "include",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Unable to load categories.");
+      }
+
+      setAvailableCategories(result.data);
+      setIsAdmin(result.isAdmin === true);
+    } catch (error) {
+      console.error("Category loading error:", error);
+      setCategoryError(
+        error instanceof Error ? error.message : "Unable to load categories.",
+      );
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const handleCategoryChange = (category: string) => {
+    setCategories((current) => (current.includes(category) ? [] : [category]));
+  };
+
+  const handleAddCategory = async () => {
+    const tag = newCategory.trim();
+
+    if (!tag || isSavingCategory) return;
+
+    try {
+      setIsSavingCategory(true);
+      setCategoryError("");
+
+      const response = await fetch(withBasePath("/api/category-tags"), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ tag }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Unable to add category.");
+      }
+
+      // Refresh categories
+      await fetchCategories();
+
+      setNewCategory("");
+      setIsAddingCategory(false);
+    } catch (error) {
+      console.error("Add category error:", error);
+      setCategoryError(
+        error instanceof Error ? error.message : "Unable to add category.",
+      );
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete || isDeletingCategory) return;
+
+    try {
+      setIsDeletingCategory(true);
+      setCategoryError("");
+
+      const response = await fetch(withBasePath("/api/category-tags"), {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ tag: categoryToDelete }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Unable to delete category.");
+      }
+
+      // Clear selection if the deleted category was selected
+      setCategories((current) =>
+        current.filter((category) => category !== categoryToDelete),
+      );
+
+      // Refresh categories
+      await fetchCategories();
+
+      setCategoryToDelete(null);
+    } catch (error) {
+      console.error("Delete category error:", error);
+      setCategoryError(
+        error instanceof Error ? error.message : "Unable to delete category.",
+      );
+    } finally {
+      setIsDeletingCategory(false);
+    }
+  };
+
   function isValidDate(year: number, month: number, day: number) {
     const date = new Date(Date.UTC(year, month - 1, day));
 
@@ -322,21 +457,6 @@ export default function AddEmailCasePage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6">
-      {/* Page heading */}
-      {/* <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-confirm">
-          Information Management
-        </p>
-
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-          {editingCaseId ? "Edit Information Case" : "New Email Request"}
-        </h1>
-
-        <p className="mt-1 text-sm text-gray-500">
-          Enter the task details, comments and category information.
-        </p>
-      </div> */}
-
       {/* Form panel */}
       <div className="rounded-xl border border-border bg-surface p-5 shadow-sm sm:p-7 lg:p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -432,26 +552,118 @@ export default function AddEmailCasePage() {
               Category <span className="text-red-500">*</span>
             </legend>
 
-            <div className="flex flex-wrap gap-6">
-              {["NPDP", "NPS"].map((category) => (
-                <label
-                  key={category}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-border px-4 py-3 text-sm text-foreground transition hover:border-confirm hover:bg-confirm/5"
-                >
-                  <input
-                    type="checkbox"
-                    checked={categories.includes(category)}
-                    onChange={() =>
-                      setCategories(
-                        categories.includes(category) ? [] : [category],
-                      )
-                    }
-                    className="h-4 w-4 accent-confirm"
-                  />
-                  <span className="font-medium">{category}</span>
-                </label>
-              ))}
+            <div className="flex flex-wrap items-center gap-4">
+              {isLoadingCategories ? (
+                <p className="text-sm text-muted-foreground">
+                  Loading categories...
+                </p>
+              ) : (
+                availableCategories.map((category) => {
+                  const isSelected = categories.includes(category);
+
+                  return (
+                    <div key={category} className="relative">
+                      <label
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 pr-7 text-sm transition ${
+                          isSelected
+                            ? "border-confirm bg-confirm/10 text-confirm"
+                            : "border-border text-foreground hover:border-confirm hover:bg-confirm/5"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            setCategories((current) =>
+                              current.includes(category)
+                                ? current.filter((item) => item !== category)
+                                : [...current, category]
+                            );
+                          }}
+                          className="h-4 w-4 accent-confirm"
+                        />
+
+                        <span className="font-medium">{category}</span>
+                      </label>
+
+                      {/* Admin delete button */}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          title={`Delete ${category}`}
+                          onClick={() => setCategoryToDelete(category)}
+                          className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-xs font-bold text-muted-foreground shadow-sm transition hover:border-red-500 hover:bg-red-500 hover:text-white"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Admin add category */}
+              {isAdmin && (
+                <>
+                  {isAddingCategory ? (
+                    <div
+                      className="flex items-center gap-2"
+                    >
+                      <input
+                        autoFocus
+                        type="text"
+                        value={newCategory}
+                        onChange={(event) => setNewCategory(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            setIsAddingCategory(false);
+                            setNewCategory("");
+                          }
+                        }}
+                        placeholder="Category name..."
+                        maxLength={100}
+                        disabled={isSavingCategory}
+                        className="w-40 rounded-lg border border-confirm bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-confirm/30"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={handleAddCategory}
+                        disabled={!newCategory.trim() || isSavingCategory}
+                        className="rounded-lg bg-confirm px-3 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isSavingCategory ? "..." : "Add"}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isSavingCategory}
+                        onClick={() => {
+                          setIsAddingCategory(false);
+                          setNewCategory("");
+                        }}
+                        className="rounded-lg border border-border px-3 py-3 text-sm text-muted-foreground hover:bg-muted"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingCategory(true)}
+                      className="flex items-center gap-2 rounded-lg border border-dashed border-confirm px-4 py-3 text-sm font-medium text-confirm transition hover:bg-confirm/5"
+                    >
+                      <span className="text-lg leading-none">+</span>
+                      More
+                    </button>
+                  )}
+                </>
+              )}
             </div>
+
+            {categoryError && (
+              <p className="mt-3 text-sm text-red-500">{categoryError}</p>
+            )}
           </fieldset>
 
           {/* Status */}
@@ -518,6 +730,44 @@ export default function AddEmailCasePage() {
             </button>
           </div>
         </form>
+        {/* Delete Category Confirmation */}
+        {categoryToDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-xl">
+              <h3 className="text-base font-semibold text-foreground">
+                Delete Category
+              </h3>
+
+              <p className="mt-3 text-sm text-muted-foreground">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-foreground">
+                  {categoryToDelete}
+                </span>
+                ?
+              </p>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={isDeletingCategory}
+                  onClick={() => setCategoryToDelete(null)}
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isDeletingCategory}
+                  onClick={handleDeleteCategory}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeletingCategory ? "Deleting..." : "OK"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

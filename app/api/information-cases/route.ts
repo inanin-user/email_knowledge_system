@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import type { CaseRow, TroubleshootingPromptRow } from '@/types/case';
 import type { ResultSetHeader } from 'mysql2';
+import { validateCategories } from '@/lib/validate-category';
 
 
 export async function POST(request: NextRequest) {
@@ -31,17 +32,7 @@ export async function POST(request: NextRequest) {
       ? payload.rootCause.trim()
       : '';
 
-  const allowedCategories = ['NPS', 'NPDP'];
-
-  const categories = Array.isArray(payload.categories)
-    ? [...new Set(
-        payload.categories.filter(
-          (value): value is string =>
-            typeof value === 'string' &&
-            allowedCategories.includes(value),
-        ),
-      )]
-    : [];
+  const categories = await validateCategories(payload.categories);
 
   const inReplies = Array.isArray(payload.inReplies)
     ? payload.inReplies
@@ -118,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     for (const category of categories) {
       await connection.execute(
-        `INSERT INTO email_case_tags (case_id, tag)
+        `INSERT INTO information_case_tags (case_id, tag)
          VALUES (?, ?)`,
         [caseId, category],
       );
@@ -207,23 +198,6 @@ export async function GET() {
         m.sent_at ASC,
         m.id ASC
     `);
-
-    // const [promptRows] = await pool.query<TroubleshootingPromptRow[]>(`
-    //   SELECT
-    //     id,
-    //     case_id,
-    //     body
-    //   FROM troubleshooting_prompts
-    //   ORDER BY case_id ASC, id ASC
-    // `);
-
-    // const promptsByCase = new Map<number, TroubleshootingPromptRow[]>();
-
-    // for (const prompt of promptRows) {
-    //   const prompts = promptsByCase.get(prompt.case_id) ?? [];
-    //   prompts.push(prompt);
-    //   promptsByCase.set(prompt.case_id, prompts);
-    // }
 
     const cases = new Map<number, {
       id: number;

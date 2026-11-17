@@ -14,26 +14,6 @@ type InformationCase = {
 };
 
 const filters = ["All", "NPDP", "NPS"] as const;
-function formatDate(value: string) {
-  if (!value) return "Date unavailable";
-
-  const date = new Date(value.replace(" ", "T"));
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
-
-const colorClasses: Record<string, string> = {
-  purple: "bg-purple-50 text-purple-600",
-  blue: "bg-blue-50 text-blue-600",
-  green: "bg-emerald-50 text-emerald-600",
-  orange: "bg-orange-50 text-orange-600",
-};
 
 function Priority({ value }: { value: string }) {
   const styles: Record<string, string> = {
@@ -68,6 +48,20 @@ function Status({ value }: { value: string }) {
   );
 }
 
+function formatDate(value: string) {
+  if (!value) return "Date unavailable";
+
+  const date = new Date(value.replace(" ", "T"));
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
 export default function InformationCaseDashboard() {
   const [cases, setCases] = useState<InformationCase[]>([]);
   const [activeFilter, setActiveFilter] =
@@ -75,8 +69,9 @@ export default function InformationCaseDashboard() {
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -135,6 +130,27 @@ export default function InformationCaseDashboard() {
       return matchesCategory && matchesSearch;
     });
   }, [cases, search, activeFilter]);
+
+  const totalCases = filteredCases.length;
+
+  const totalPages = Math.ceil(totalCases / ITEMS_PER_PAGE);
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalCases);
+
+  const paginatedCases = filteredCases.slice(startIndex, endIndex);
+
+  // Display no more than 3 page buttons.
+  const pageStart = Math.max(1, Math.min(currentPage - 1, totalPages - 2));
+
+  const visiblePages = Array.from(
+    { length: Math.min(3, totalPages) },
+    (_, index) => pageStart + index,
+  );
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, activeFilter]);
 
   const statusChart = useMemo(() => {
     const statusOptions = [
@@ -311,16 +327,6 @@ export default function InformationCaseDashboard() {
           />
         </div>
 
-        {/* <div className="flex gap-7 border-b border-[#edf0f5] px-6">
-          <button className="border-b-2 border-[#7961e8] py-3 text-sm font-semibold text-[#7961e8]">
-            All cases
-          </button>
-          <button className="py-3 text-sm text-[#858ca3]">
-            Assigned to me
-          </button>
-          <button className="py-3 text-sm text-[#858ca3]">Unassigned</button>
-        </div> */}
-
         <div className="overflow-x-auto">
           <table className="w-full min-w-[950px] text-left">
             <thead className="bg-[#fafbfe] text-[10px] font-semibold uppercase tracking-wide text-[#9298aa]">
@@ -334,54 +340,122 @@ export default function InformationCaseDashboard() {
               </tr>
             </thead>
             <tbody>
-              {filteredCases.map((item) => (
-                <tr
-                  key={item.id}
-                  className="border-t border-[#edf0f5] text-sm hover:bg-[#fafbfe]"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-start gap-4">
-                      <span className="mt-0.5 text-xs text-[#9298aa]">
-                        {item.id}
-                      </span>
-                      <div>
-                        <p className="font-medium text-[#30354b]">
-                          {item.subject}
-                        </p>
-                        <p className="mt-1 text-xs text-[#9298aa]">
-                          {item.category}
-                        </p>
+              {paginatedCases.map((item) => {
+                const categories = Array.isArray(item.category)
+                  ? item.category
+                  : Array.isArray(item.category)
+                    ? item.category
+                    : typeof item.category === "string" && item.category.trim()
+                      ? [item.category]
+                      : [];
+
+                return (
+                  <tr
+                    key={item.id}
+                    className="border-t border-[#edf0f5] text-sm hover:bg-[#fafbfe]"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-start gap-4">
+                        <div>
+                          <p className="font-medium text-[#30354b]">
+                            {item.subject}
+                          </p>
+
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {categories.length > 0 ? (
+                              categories.map((category) => (
+                                <span
+                                  key={category}
+                                  className="rounded-md bg-[#f0eef8] px-2 py-0.5 text-xs text-[#71639a]"
+                                >
+                                  {category}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-[#9298aa]">
+                                No category
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-[#69718a]">"iN admin"</td>
-                  <td className="px-4 py-4">
-                    <Priority value="Low" />
-                  </td>
-                  <td className="px-4 py-4">
-                    <Status value={item.status} />
-                  </td>
-                  <td className="px-4 py-4 text-[#69718a]">iN admin</td>
-                  <td className="px-4 py-4 text-xs text-[#9298aa]">
-                    {item.emailDate}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+
+                    <td className="px-4 py-4 text-[#69718a]">iN admin</td>
+
+                    <td className="px-4 py-4">
+                      <Priority value="Low" />
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <Status value={item.status} />
+                    </td>
+
+                    <td className="px-4 py-4 text-[#69718a]">iN admin</td>
+
+                    <td className="px-4 py-4 text-xs text-[#9298aa]">
+                      {formatDate(item.emailDate)}
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <Link
+                        href={`/edit-information-case/${item.id}`}
+                        className="inline-flex items-center rounded-md border border-[#d9dce7] px-3 py-1.5 text-xs font-medium text-[#555d75] transition hover:border-[#71639a] hover:bg-[#f0eef8] hover:text-[#71639a]"
+                      >
+                        Edit
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
-        <div className="flex items-center justify-between border-t border-[#edf0f5] px-6 py-4 text-xs text-[#9298aa]">
-          <span>Showing 4 of 48 cases</span>
-          <div className="flex items-center gap-4">
-            <button disabled className="opacity-50">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#edf0f5] px-6 py-4 text-xs text-[#9298aa]">
+          <span>
+            Showing {totalCases === 0 ? 0 : startIndex + 1}–{endIndex} of{" "}
+            {totalCases} cases
+          </span>
+
+          <div className="flex items-center gap-2">
+            {/* Previous */}
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="rounded-md px-3 py-2 transition hover:bg-purple-50 hover:text-purple-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
               Previous
             </button>
-            <span className="rounded-md bg-purple-50 px-3 py-2 font-semibold text-purple-600">
-              1
-            </span>
-            <button>2</button>
-            <button>Next →</button>
+
+            {/* Page numbers: maximum 3 */}
+            {visiblePages.map((page) => (
+              <button
+                key={page}
+                type="button"
+                onClick={() => setCurrentPage(page)}
+                className={`rounded-md px-3 py-2 font-semibold transition ${
+                  currentPage === page
+                    ? "bg-purple-50 text-purple-600"
+                    : "text-[#9298aa] hover:bg-purple-50 hover:text-purple-600"
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+
+            {/* Next */}
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
+              disabled={currentPage >= totalPages}
+              className="rounded-md px-3 py-2 transition hover:bg-purple-50 hover:text-purple-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next →
+            </button>
           </div>
         </div>
       </section>

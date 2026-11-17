@@ -1,5 +1,5 @@
-
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import Navigation from "@/components/Navigation";
 
 type AuthenticatedLayoutProps = {
@@ -11,7 +11,9 @@ export default function AuthenticatedLayout({
 }: AuthenticatedLayoutProps) {
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
-      <Navigation />
+      <Suspense fallback={<div className="h-16 shrink-0 bg-background" />}>
+        <Navigation />
+      </Suspense>
 
       <main className="min-h-0 flex-1 overflow-hidden">
         {children}

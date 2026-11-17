@@ -1,9 +1,12 @@
-
-import { NextRequest, NextResponse } from 'next/server';
-import type { CaseRow, EmailMessageRow, TroubleshootingPromptRow } from '@/types/case';
-import pool from '@/lib/db';
-import { CASE_STATUSES, CaseStatus } from '@/types/caseStatus';
-
+import { NextRequest, NextResponse } from "next/server";
+import type {
+  CaseRow,
+  EmailMessageRow,
+  TroubleshootingPromptRow,
+} from "@/types/case";
+import pool from "@/lib/db";
+import { CASE_STATUSES, CaseStatus } from "@/types/caseStatus";
+import { validateCategories } from "@/lib/validate-category";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -14,16 +17,13 @@ function parseId(value: string) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-export async function GET(
-  _request: NextRequest,
-  { params }: RouteContext,
-) {
+export async function GET(_request: NextRequest, { params }: RouteContext) {
   const { id: rawId } = await params;
   const id = parseId(rawId);
 
   if (!id) {
     return NextResponse.json(
-      { success: false, message: 'Invalid case ID.' },
+      { success: false, message: "Invalid case ID." },
       { status: 400 },
     );
   }
@@ -39,7 +39,7 @@ export async function GET(
 
     if (!caseRows.length) {
       return NextResponse.json(
-        { success: false, message: 'Email case not found.' },
+        { success: false, message: "Email case not found." },
         { status: 404 },
       );
     }
@@ -52,7 +52,7 @@ export async function GET(
        ORDER BY sent_at ASC, id ASC`,
       [id],
     );
-
+    console.log("Fetched messages:", messages);
     // const [prompts] = await pool.execute<TroubleshootingPromptRow[]>(
     //   `SELECT id, body
     //    FROM troubleshooting_prompts
@@ -77,25 +77,22 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Failed to fetch information case:', error);
+    console.error("Failed to fetch information case:", error);
 
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch information case.' },
+      { success: false, message: "Failed to fetch information case." },
       { status: 500 },
     );
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: RouteContext,
-) {
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const { id: rawId } = await params;
   const id = parseId(rawId);
 
   if (!id) {
     return NextResponse.json(
-      { success: false, message: 'Invalid case ID.' },
+      { success: false, message: "Invalid case ID." },
       { status: 400 },
     );
   }
@@ -106,37 +103,36 @@ export async function PATCH(
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { success: false, message: 'Invalid JSON request body.' },
+      { success: false, message: "Invalid JSON request body." },
       { status: 400 },
     );
   }
-
-  const subject =
-    typeof body.subject === 'string' ? body.subject.trim() : '';
+  // console.log('Received PATCH request body:', body);
+  const subject = typeof body.subject === "string" ? body.subject.trim() : "";
 
   const rootCause =
-    typeof body.rootCause === 'string' ? body.rootCause.trim() : '';
+    typeof body.rootCause === "string" ? body.rootCause.trim() : "";
 
   const emailDate =
-    typeof body.emailDate === 'string' && body.emailDate
+    typeof body.emailDate === "string" && body.emailDate
       ? body.emailDate
       : null;
 
-  const validCategories = ['NPS', 'NPDP'];
-
-  const categories = Array.isArray(body.categories)
-    ? body.categories
-    : [];
+  const categories = await validateCategories(body.categories);
 
   if (
     !subject ||
     subject.length > 500 ||
     !CASE_STATUSES.includes(body.status as CaseStatus) ||
-    categories.length !== 1 ||
-    !validCategories.includes(String(categories[0]))
+    categories.length == 0
   ) {
+    console.log("Validation failed:", {
+      subject,
+      status: body.status,
+      categories,
+    });
     return NextResponse.json(
-      { success: false, message: 'Invalid case fields.' },
+      { success: false, message: "Invalid case fields." },
       { status: 400 },
     );
   }
@@ -147,37 +143,31 @@ export async function PATCH(
       Number.isNaN(Date.parse(`${emailDate}T00:00:00Z`)))
   ) {
     return NextResponse.json(
-      { success: false, message: 'Invalid email date.' },
+      { success: false, message: "Invalid email date." },
       { status: 400 },
     );
   }
 
   const stringArray = (value: unknown) =>
     Array.isArray(value)
-      ? value.filter(
-          (entry): entry is string =>
-            typeof entry === 'string' && entry.trim().length > 0,
-        ).map((entry) => entry.trim())
+      ? value
+          .filter(
+            (entry): entry is string =>
+              typeof entry === "string" && entry.trim().length > 0,
+          )
+          .map((entry) => entry.trim())
       : [];
 
   const inReplies = stringArray(body.inReplies);
   const userReplies = stringArray(body.userReplies);
-  // const prompts = stringArray(body.prompts);
-
-  // if (inReplies.length + userReplies.length > 100 || prompts.length > 100) {
-  //   return NextResponse.json(
-  //     { success: false, message: 'Too many replies or prompts.' },
-  //     { status: 400 },
-  //   );
-  // }
 
   const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
 
-    const [existing] = await connection.execute<CaseRow[]>(
-      'SELECT id FROM information_cases WHERE id = ? FOR UPDATE',
+    const [existing] = await connection.query<CaseRow[]>(
+      "SELECT id FROM information_cases WHERE id = ? FOR UPDATE",
       [id],
     );
 
@@ -185,12 +175,12 @@ export async function PATCH(
       await connection.rollback();
 
       return NextResponse.json(
-        { success: false, message: 'Email case not found.' },
+        { success: false, message: "Email case not found." },
         { status: 404 },
       );
     }
 
-    await connection.execute(
+    await connection.query(
       `UPDATE information_cases
        SET subject = ?, email_date = ?, root_cause = ?,
            category = ?, status = ?
@@ -199,24 +189,36 @@ export async function PATCH(
         subject,
         emailDate,
         rootCause || null,
-        categories[0],
+        JSON.stringify(categories),
         body.status,
         id,
       ],
     );
 
-    await connection.execute(
-      'DELETE FROM email_case_tags WHERE case_id = ?',
+    await connection.query(
+      "DELETE FROM information_case_tags WHERE case_id = ?",
       [id],
     );
 
-    await connection.execute(
-      'INSERT INTO email_case_tags (case_id, tag) VALUES (?, ?)',
-      [id, categories[0]],
+    await connection.query(
+      "DELETE FROM information_case_tags WHERE case_id = ?",
+      [id],
     );
 
+    if (categories.length > 0) {
+      const values = categories.map(() => "(?, ?)").join(", ");
+
+      const params = categories.flatMap((category) => [id, category]);
+
+      await connection.query(
+        `INSERT INTO information_case_tags (case_id, tag)
+     VALUES ${values}`,
+        params,
+      );
+    }
+
     // Replace editable replies and prompts while preserving other message types.
-    await connection.execute(
+    await connection.query(
       `DELETE FROM information_messages
        WHERE case_id = ? AND message_type IN ('user', 'in_reply')`,
       [id],
@@ -224,17 +226,17 @@ export async function PATCH(
 
     for (const message of [
       ...userReplies.map((text) => ({
-        type: 'user',
-        sender: 'User',
+        type: "user",
+        sender: "User",
         text,
       })),
       ...inReplies.map((text) => ({
-        type: 'in_reply',
-        sender: 'iN',
+        type: "in_reply",
+        sender: "iN",
         text,
       })),
     ]) {
-      await connection.execute(
+      await connection.query(
         `INSERT INTO information_messages
            (case_id, message_type, sender_name, body, sent_at)
          VALUES (?, ?, ?, ?, NOW())`,
@@ -242,32 +244,19 @@ export async function PATCH(
       );
     }
 
-    // await connection.execute(
-    //   'DELETE FROM troubleshooting_prompts WHERE case_id = ?',
-    //   [id],
-    // );
-
-    // for (const prompt of prompts) {
-    //   await connection.execute(
-    //     `INSERT INTO troubleshooting_prompts (case_id, body)
-    //      VALUES (?, ?)`,
-    //     [id, prompt],
-    //   );
-    // }
-
     await connection.commit();
 
     return NextResponse.json({
       success: true,
-      message: 'Email case updated successfully.',
+      message: "Email case updated successfully.",
       data: { id },
     });
   } catch (error) {
     await connection.rollback();
-    console.error('Failed to update email case:', error);
+    console.error("Failed to update email case:", error);
 
     return NextResponse.json(
-      { success: false, message: 'Failed to update email case.' },
+      { success: false, message: "Failed to update email case." },
       { status: 500 },
     );
   } finally {

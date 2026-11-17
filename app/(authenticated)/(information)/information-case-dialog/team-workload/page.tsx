@@ -19,7 +19,7 @@ export default function TeamWorkloadPage() {
     <div className="mx-auto max-w-[1500px] space-y-7">
       <div>
         {/* <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">Operations</p> */}
-        <h1 className="mt-2 text-3xl font-bold">Team Workload</h1>
+        <h1 className="mt-2 text-3xl font-bold">Batch Jobs</h1>
         <p className="mt-1 text-sm text-gray-500">
           Monitor scheduled batch jobs and their execution status.
         </p>
