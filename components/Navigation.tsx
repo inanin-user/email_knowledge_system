@@ -18,7 +18,7 @@ const navigationItems = [
   {
     title: "Information Case",
     description: "Information Function",
-    href: "/add-information-case",
+    href: "/information-case-dialog",
     matchPaths: [
       "/information-case-dialog",
       "/add-information-case",

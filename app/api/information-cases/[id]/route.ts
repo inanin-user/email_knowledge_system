@@ -52,7 +52,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
        ORDER BY sent_at ASC, id ASC`,
       [id],
     );
-    console.log("Fetched messages:", messages);
+    
     // const [prompts] = await pool.execute<TroubleshootingPromptRow[]>(
     //   `SELECT id, body
     //    FROM troubleshooting_prompts
@@ -107,7 +107,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { status: 400 },
     );
   }
-  // console.log('Received PATCH request body:', body);
+  
   const subject = typeof body.subject === "string" ? body.subject.trim() : "";
 
   const rootCause =
@@ -126,11 +126,6 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     !CASE_STATUSES.includes(body.status as CaseStatus) ||
     categories.length == 0
   ) {
-    console.log("Validation failed:", {
-      subject,
-      status: body.status,
-      categories,
-    });
     return NextResponse.json(
       { success: false, message: "Invalid case fields." },
       { status: 400 },
@@ -148,18 +143,30 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const stringArray = (value: unknown) =>
-    Array.isArray(value)
-      ? value
-          .filter(
-            (entry): entry is string =>
-              typeof entry === "string" && entry.trim().length > 0,
-          )
-          .map((entry) => entry.trim())
-      : [];
+  type ReplyEntry = {
+    id: number;
+    text: string;
+  };
 
-  const inReplies = stringArray(body.inReplies);
-  const userReplies = stringArray(body.userReplies);
+  const replyArray = (value: unknown): ReplyEntry[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter(
+        (entry): entry is ReplyEntry =>
+          typeof entry === "object" &&
+          entry !== null &&
+          typeof entry.id === "number" &&
+          typeof entry.text === "string" &&
+          entry.text.trim().length > 0,
+      )
+      .map((entry) => ({
+        id: entry.id,
+        text: entry.text.trim(),
+      }));
+  };
+
+  const inReplies = replyArray(body.inReplies);
+  const userReplies = replyArray(body.userReplies);
 
   const connection = await pool.getConnection();
 
@@ -225,21 +232,23 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     );
 
     for (const message of [
-      ...userReplies.map((text) => ({
+      ...userReplies.map((reply) => ({
         type: "user",
         sender: "User",
-        text,
+        text: reply.text,
       })),
-      ...inReplies.map((text) => ({
+      ...inReplies.map((reply) => ({
         type: "in_reply",
         sender: "iN",
-        text,
+        text: reply.text,
       })),
     ]) {
+      
+
       await connection.query(
         `INSERT INTO information_messages
-           (case_id, message_type, sender_name, body, sent_at)
-         VALUES (?, ?, ?, ?, NOW())`,
+       (case_id, message_type, sender_name, body, sent_at)
+     VALUES (?, ?, ?, ?, NOW())`,
         [id, message.type, message.sender, message.text],
       );
     }

@@ -14,41 +14,6 @@ type ReplyEntry = {
   id: number;
   text: string;
 };
-type MessageType = "user" | "in_reply";
-
-type EmailMessage = {
-  id: number;
-  type: MessageType;
-  sender: string;
-  body: string;
-  sentAt: string;
-};
-
-type EmailCase = {
-  id: number;
-  subject: string;
-  emailDate: string;
-  category: string;
-  rootCause: string;
-  status: CaseStatus;
-  messages: EmailMessage[];
-};
-
-const filters = ["All", "NPDP", "NPS"];
-
-function formatDate(value: string) {
-  if (!value) return "Date unavailable";
-
-  const date = new Date(value.replace(" ", "T"));
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
 
 export default function AddEmailCasePage() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -79,9 +44,7 @@ export default function AddEmailCasePage() {
 
   const [emailDate, setEmailDate] = useState("");
   const [status, setStatus] = useState<CaseStatus>("follow_up");
-  const [promptEditor, setPromptEditor] = useState<ReplyEntry[]>([
-    { id: 1, text: "" },
-  ]);
+
   const [editingCaseId, setEditingCaseId] = useState<number | null>(null);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const params = useParams<{ id: string }>();
@@ -202,6 +165,8 @@ export default function AddEmailCasePage() {
         inReplies,
         userReplies,
       };
+
+      console.log("payload: " + payload.inReplies[0].text);
 
       const response = await fetch(
         withBasePath(`/api/information-cases/${caseId}`),
