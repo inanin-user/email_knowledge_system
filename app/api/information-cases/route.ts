@@ -9,7 +9,9 @@ import { validateCategories } from '@/lib/validate-category';
 export async function POST(request: NextRequest) {
   let payload: {
     subject?: unknown;
+    emailDate?: unknown;
     rootCause?: unknown;
+    status?: unknown;
     categories?: unknown;
     inReplies?: unknown;
     userReplies?: unknown;
@@ -26,6 +28,11 @@ export async function POST(request: NextRequest) {
 
   const subject =
     typeof payload.subject === 'string' ? payload.subject.trim() : '';
+
+  const emailDate =
+    typeof payload.emailDate === 'string'
+      ? new Date(payload.emailDate)
+      : new Date();
 
   const rootCause =
     typeof payload.rootCause === 'string'
@@ -47,6 +54,9 @@ export async function POST(request: NextRequest) {
         .map((value) => value.trim())
         .filter(Boolean)
     : [];
+
+  const status =
+    typeof payload.status === 'string' ? payload.status.trim() : 'follow_up';
 
   if (!subject || subject.length > 500) {
     return NextResponse.json(
@@ -101,8 +111,8 @@ export async function POST(request: NextRequest) {
     const [caseResult] = await connection.execute<ResultSetHeader>(
       `INSERT INTO information_cases
         (subject, email_date, category, root_cause, status)
-       VALUES (?, NOW(), ?, ?, 'open')`,
-      [subject, categories[0], rootCause || null],
+       VALUES (?, ?, ?, ?, ?)`,
+      [subject, emailDate, JSON.stringify(categories), rootCause || null, status],
     );
 
     const caseId = caseResult.insertId;
@@ -226,7 +236,6 @@ export async function GET() {
           rootCause: row.root_cause,
           status: row.status,
           messages: [],
-          // prompts: promptsByCase.get(row.id) ?? [],
         });
       }
 

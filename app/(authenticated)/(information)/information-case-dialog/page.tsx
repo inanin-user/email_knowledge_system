@@ -3,15 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { withBasePath } from "@/lib/basePath";
+import InformationCasePopup from "@/components/InformationCasePopup";
+import { InformationCase } from "@/types/informationCase";
 
-type InformationCase = {
-  id: number;
-  subject: string;
-  emailDate: string;
-  category: string;
-  rootCause?: string | null;
-  status: string;
-};
+// type InformationCase = {
+//   id: number;
+//   subject: string;
+//   emailDate: string;
+//   category: string;
+//   rootCause?: string | null;
+//   status: string;
+// };
+
+
+
 
 const filters = ["All", "NPDP", "NPS"] as const;
 
@@ -70,6 +75,8 @@ export default function InformationCaseDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedCase, setSelectedCase] = useState<
+    (typeof paginatedCases)[number] | null>(null);
 
   const ITEMS_PER_PAGE = 10;
 
@@ -343,16 +350,35 @@ export default function InformationCaseDashboard() {
               {paginatedCases.map((item) => {
                 const categories = Array.isArray(item.category)
                   ? item.category
-                  : Array.isArray(item.category)
-                    ? item.category
-                    : typeof item.category === "string" && item.category.trim()
-                      ? [item.category]
-                      : [];
+                  : typeof item.category === "string" && item.category.trim()
+                    ? (() => {
+                        try {
+                          const parsed: unknown = JSON.parse(item.category);
+                          return Array.isArray(parsed)
+                            ? parsed.filter(
+                                (value): value is string =>
+                                  typeof value === "string",
+                              )
+                            : [item.category];
+                        } catch {
+                          return [item.category];
+                        }
+                      })()
+                    : [];
 
                 return (
                   <tr
                     key={item.id}
-                    className="border-t border-[#edf0f5] text-sm hover:bg-[#fafbfe]"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedCase(item)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedCase(item);
+                      }
+                    }}
+                    className="cursor-pointer border-t border-[#edf0f5] text-sm hover:bg-[#fafbfe] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#71639a]"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-start gap-4">
@@ -400,6 +426,7 @@ export default function InformationCaseDashboard() {
                     <td className="px-4 py-4">
                       <Link
                         href={`/edit-information-case/${item.id}`}
+                        onClick={(event) => event.stopPropagation()}
                         className="inline-flex items-center rounded-md border border-[#d9dce7] px-3 py-1.5 text-xs font-medium text-[#555d75] transition hover:border-[#71639a] hover:bg-[#f0eef8] hover:text-[#71639a]"
                       >
                         Edit
@@ -410,8 +437,14 @@ export default function InformationCaseDashboard() {
               })}
             </tbody>
           </table>
+          {selectedCase && (
+            <InformationCasePopup
+              item={selectedCase}
+              onClose={() => setSelectedCase(null)}
+            />
+)}
         </div>
-
+        
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#edf0f5] px-6 py-4 text-xs text-[#9298aa]">
           <span>
             Showing {totalCases === 0 ? 0 : startIndex + 1}–{endIndex} of{" "}
